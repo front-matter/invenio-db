@@ -10,11 +10,12 @@
 """Click command-line interface for database management."""
 
 import click
+from flask import current_app
 from flask.cli import with_appcontext
 from sqlalchemy_utils.functions import create_database, database_exists, drop_database
 
 from .proxies import current_db
-from .utils import create_alembic_version_table, drop_alembic_version_table
+from .utils import create_alembic_version_table, drop_alembic_version_table, has_table
 
 
 def abort_if_false(ctx, param, value):
@@ -41,14 +42,21 @@ def db():
 @with_appcontext
 def create(verbose):
     """Create tables."""
-    click.secho("Creating all tables!", fg="yellow", bold=True)
-    with click.progressbar(current_db.metadata.sorted_tables) as bar:
-        for table in bar:
-            if verbose:
-                click.echo(" Creating table {0}".format(table))
-            table.create(bind=current_db.engine, checkfirst=True)
-    create_alembic_version_table()
-    click.secho("Created all tables!", fg="green")
+    alembic = current_app.extensions["invenio-db"].alembic
+    if not alembic.migration_context._has_version_table():
+        click.secho("Creating all tables!", fg="yellow", bold=True)
+        with click.progressbar(current_db.metadata.sorted_tables) as bar:
+            for table in bar:
+                if verbose:
+                    click.echo(f" Creating table {table}")
+                table.create(bind=current_db.engine, checkfirst=True)
+        create_alembic_version_table()
+        click.secho("Created all tables!", fg="green")
+    else:
+        click.secho(
+            "Alembic version table already exists, skipping table creation.",
+            fg="yellow",
+        )
 
 
 @db.command()
@@ -67,7 +75,7 @@ def drop(verbose):
     with click.progressbar(reversed(current_db.metadata.sorted_tables)) as bar:
         for table in bar:
             if verbose:
-                click.echo(" Dropping table {0}".format(table))
+                click.echo(f" Dropping table {table}")
             table.drop(bind=current_db.engine, checkfirst=True)
         drop_alembic_version_table()
     click.secho("Dropped all tables!", fg="green")

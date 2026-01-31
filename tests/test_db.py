@@ -260,7 +260,6 @@ def test_entry_points(db, app):
 
     # Test merging a base another file.
     with runner.isolated_filesystem():
-
         # show help
         result = runner.invoke(db_cmd, [])
         click_help_result_code = (
@@ -287,10 +286,12 @@ def test_entry_points(db, app):
         assert result.exit_code == 0
 
         result = runner.invoke(db_cmd, ["create", "-v"])
-        assert result.exit_code == 1
+        assert result.exit_code == 0
+        assert "Alembic version table already exists" in result.output
 
         result = runner.invoke(db_cmd, ["create", "-v"])
-        assert result.exit_code == 1
+        assert result.exit_code == 0
+        assert "Alembic version table already exists" in result.output
 
         result = runner.invoke(db_cmd, ["drop", "-v", "--yes-i-know"])
         assert result.exit_code == 0
@@ -329,7 +330,7 @@ def test_entry_points(db, app):
         assert result.exit_code == 1
 
         result = runner.invoke(db_cmd, ["create", "-v"])
-        assert result.exit_code == 1
+        assert result.exit_code == 0
 
         result = runner.invoke(db_cmd, ["drop", "-v", "--yes-i-know"])
         assert result.exit_code == 0
